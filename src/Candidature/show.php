@@ -1,7 +1,10 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-if (isset($_GET['id'])) {
+
+if (isset($_GET['id']) && isset($_GET['file'])) {
   $id = $_GET['id'];
+  $fileType = $_GET['file'];
+
   $sql = "SELECT * FROM candidature WHERE id = :id";
   $statement = $pdo->prepare($sql);
   $statement->bindValue(':id', $id);
@@ -9,21 +12,28 @@ if (isset($_GET['id'])) {
 
   if ($statement->rowCount() > 0) {
     $file = $statement->fetch(PDO::FETCH_ASSOC);
-    $filepath = "uploads/" . $file['file'];
- 
+    $filename = "";
+
+    if ($fileType === 'CV') {
+      $filepath = "uploads/" . $file['file'];
+      $filename = $file['file'];
+    } elseif ($fileType === 'motivation') {
+      $filepath = "uploads2/" . $file['lettre_motv'];
+      $filename = $file['lettre_motv'];
+    }
 
     if (file_exists($filepath)) {
       header('Content-Type: application/octet-stream');
       header('Content-Description: File Transfer');
-      header('Content-Disposition: attachment; filename=' . basename($filepath));
+      header('Content-Disposition: attachment; filename=' . basename($filename));
       header('Expires: 0');
       header('Cache-Control: must-revalidate');
       header('Pragma: public');
-      header('Content-Length: ' . filesize('uploads/' . $file['file']));
+      header('Content-Length: ' . filesize($filepath));
       readfile($filepath);
 
       $newCount = $file['show'] + 1;
-      $updateQuery = "UPDATE candidature SET show = :newCount WHERE id = :id";
+      $updateQuery = "UPDATE candidature SET `show` = :newCount WHERE id = :id";
       $updateStatement = $pdo->prepare($updateQuery);
       $updateStatement->bindValue(':newCount', $newCount);
       $updateStatement->bindValue(':id', $id);
@@ -32,36 +42,7 @@ if (isset($_GET['id'])) {
       exit;
     }
   }
-  if ($statement->rowCount() > 0) {
-    $lettre_motv = $statement->fetch(PDO::FETCH_ASSOC);
-    $filepath2 = "uploads2/" . $lettre_motv['lettre_motv'];
- 
-    if (file_exists($filepath2)) {
-      header('Content-Type: application/octet-stream');
-      header('Content-Description: file Transfer');
-      header('Content-Disposition: attachment; filename=' . basename($filepath2));
-      header('Expires: 0');
-      header('Cache-Control: must-revalidate');
-      header('Pragma: public');
-      header('Content-Length: ' . filesize('uploads/' . $lettre_motv['lettre_motv']));
-      readfile($filepath2);
-
-      $newCount = $lettre_motv['show'] + 1;
-      $updateQuery = "UPDATE candidature SET show = :newCount WHERE id = :id";
-      $updateStatement = $pdo->prepare($updateQuery);
-      $updateStatement->bindValue(':newCount', $newCount);
-      $updateStatement->bindValue(':id', $id);
-      $updateStatement->execute();
-
-      exit;
-    }
-
-  }
-
-  
 }
-
-require_once __DIR__ . '/../../config/database.php';
 
 $stm = $pdo->query("SELECT candidature.*, niveau_etude.niveau, nombre_experience.experience FROM candidature LEFT JOIN niveau_etude ON niveau_etude.id = candidature.id_nv_etude LEFT JOIN nombre_experience ON nombre_experience.id = candidature.id_nbr_experience");
 
@@ -79,7 +60,6 @@ $rows = $stm->fetchAll(PDO::FETCH_ASSOC);
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
   <link href="//fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css">
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
@@ -123,8 +103,8 @@ $rows = $stm->fetchAll(PDO::FETCH_ASSOC);
             <td><?php echo $telephone; ?></td>
             <td><?php echo $id_nv_etude; ?></td>
             <td><?php echo $id_nbr_experience; ?></td>
-            <td><a href="show.php?id=<?php echo $id; ?>" download><?php echo $file; ?></a></td>
-            <td><a href="show.php?id=<?php echo $id; ?>" download><?php echo $lettre_motv; ?></a></td>
+            <td><a href="uploads/<?php echo $file; ?>" download><?php echo $file; ?></a></td>
+            <td><a href="uploads2/<?php echo $lettre_motv; ?>" download><?php echo $lettre_motv; ?></a></td>
             <td><?php echo $comment; ?></td>
             <td><?php echo $date; ?></td>
             <td><?php echo 'IP ' . $_SERVER['REMOTE_ADDR']; ?></td>
@@ -139,7 +119,7 @@ $rows = $stm->fetchAll(PDO::FETCH_ASSOC);
       $('#tab').DataTable({
         scrollY: 450,
         scrollX: true,
-    });
+      });
     });
   </script>
 </body>
